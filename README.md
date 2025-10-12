@@ -17,6 +17,9 @@ This could have been an artistic decision or maybe something done for better per
 
 <img width="1093" height="598" alt="imagen" src="https://github.com/user-attachments/assets/f32a5687-f652-4a74-93de-92800b37ec2e" />
 
+## Installation
+To install this mod, either install it via Thunderstore or put the .dll file in the game's BepInEx/plugins directory. 
+
 ## Mod settings
 The mod has 5 settings in its config file (located at (GameDirectory)/BepInEx/config/ShadowFix.cfg)
 
@@ -36,3 +39,5 @@ Enable shadows for enemies. Disabled by default because it has a few small visua
 
 #### ShadowDarkness (DEFAULT: 0.8)
 Darkness of the dynamic shadows. 
+
+

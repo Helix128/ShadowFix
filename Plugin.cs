@@ -27,6 +27,8 @@ public class ShadowFixPlugin : BasePlugin
     public static bool EnablePlayerShadow = false;
     public static bool EnableNPCShadows = false;
     public static float ShadowDarkness = 0.8f;
+    public static float MaxRetryWaitTime = 5.0f;
+    public static int MaxRetries = 32;
     public override void Load()
     {
         Log = base.Log;
@@ -69,6 +71,7 @@ public class ShadowFixPlugin : BasePlugin
         public static ShadowFixComponent Instance { get; private set; }
         EnemyManager enemyManager;
         int lastScene = -1;
+
         private void Start()
         {
             if (Instance != null && Instance != this)
@@ -236,21 +239,18 @@ public class ShadowFixPlugin : BasePlugin
             }
         }
 
-        async void SetMeshShadowCastingMode()
+        void SetMeshShadowCastingMode()
         {
             Log.LogInfo($"Must set two-sided shadows? {TwoSidedShadows}");
             if (TwoSidedShadows)
             {
                 Log.LogInfo("Setting shadow casting mode for all meshes...");
-                await Task.Delay(50);
-                float now = Time.time;
                 var meshes = FindObjectsOfType<MeshRenderer>();
                 foreach (var mesh in meshes)
                 {
                     mesh.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
                 }
-                float elapsed = Time.time - now;
-                Log.LogInfo($"Done! ({elapsed:F2}s)");
+                Log.LogInfo("Shadow casting mode set!");
             }
         }
 
@@ -258,8 +258,8 @@ public class ShadowFixPlugin : BasePlugin
         {
             Log.LogInfo($"Enable player shadow? {EnablePlayerShadow}");
 
-            int maxRetries = 3;
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            int delayMs = (int)((MaxRetryWaitTime * 1000) / MaxRetries);
+            for (int attempt = 1; attempt <= MaxRetries; attempt++)
             {
                 var player = FindObjectOfType<PlayerRenderer>();
                 if (player != null && !player.Equals(null))
@@ -267,13 +267,12 @@ public class ShadowFixPlugin : BasePlugin
                     var playerGo = player.rendererObject;
                     if (playerGo == null || playerGo.Equals(null))
                     {
-                        Log.LogWarning("Player GameObject not found.");
-                        if (attempt < maxRetries)
+                        if (attempt < MaxRetries)
                         {
-                            Log.LogInfo($"Retrying... (Attempt {attempt}/{maxRetries})");
-                            await Task.Delay(500);
+                            await Task.Delay(delayMs);
                             continue;
                         }
+                        Log.LogWarning("Player GameObject not found.");
                         return;
                     }
                     var playerRenderers = playerGo.GetComponentsInChildren<Renderer>(true);
@@ -284,14 +283,13 @@ public class ShadowFixPlugin : BasePlugin
                     }
                     break;
                 }
-                else if (attempt < maxRetries)
+                else if (attempt < MaxRetries)
                 {
-                    Log.LogInfo($"PlayerRenderer not found, retrying... (Attempt {attempt}/{maxRetries})");
-                    await Task.Delay(500);
+                    await Task.Delay(delayMs);
                 }
                 else
                 {
-                    Log.LogWarning($"PlayerRenderer not found after {maxRetries} attempts.");
+                    Log.LogWarning($"PlayerRenderer not found after {MaxRetries} attempts.");
                 }
             }
         }
@@ -300,8 +298,8 @@ public class ShadowFixPlugin : BasePlugin
         {
             Log.LogInfo($"Must destroy blob shadow? {DisableBlobShadow}");
 
-            int maxRetries = 3;
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            int delayMs = (int)((MaxRetryWaitTime * 1000) / MaxRetries);
+            for (int attempt = 1; attempt <= MaxRetries; attempt++)
             {
                 var blobShadowProjs = FindObjectsOfType<Projector>();
                 if (blobShadowProjs != null && blobShadowProjs.Length > 0 && DisableBlobShadow)
@@ -313,14 +311,13 @@ public class ShadowFixPlugin : BasePlugin
                     }
                     break;
                 }
-                else if (DisableBlobShadow && attempt < maxRetries)
+                else if (DisableBlobShadow && attempt < MaxRetries)
                 {
-                    Log.LogInfo($"BlobShadowProjector not found, retrying... (Attempt {attempt}/{maxRetries})");
-                    await Task.Delay(500);
+                    await Task.Delay(delayMs);
                 }
                 else if (DisableBlobShadow)
                 {
-                    Log.LogWarning($"BlobShadowProjector not found after {maxRetries} attempts.");
+                    Log.LogWarning($"BlobShadowProjector not found after {MaxRetries} attempts.");
                 }
             }
         }
@@ -337,27 +334,19 @@ public class ShadowFixPlugin : BasePlugin
                     var enemyManagers = FindObjectsByType<EnemyManager>(FindObjectsSortMode.None);
                     if (enemyManagers.Length == 0)
                     {
-                        if (attempt < maxRetries)
+                        if (attempt == maxRetries)
                         {
-                            Log.LogInfo($"EnemyManager not found, retrying... (Attempt {attempt}/{maxRetries})");
-                            await Task.Delay(500);
-                            continue;
+                            Log.LogWarning("EnemyManager not found, NPC shadows may not be set up correctly.");
                         }
-                        Log.LogWarning("EnemyManager not found after retries. (Probably a menu scene)");
+                        await Task.Delay(1000);
+                        continue;
                     }
-                    else
-                    {
-                        if (enemyManager != enemyManagers[0])
-                        {
-                            fixedEnemies.Clear();
-                        }
-                        enemyManager = enemyManagers[0];
-                        Log.LogInfo($"Found EnemyManager.");
-                        break;
-                    }
+
+                    enemyManager = enemyManagers[0];
+                    Log.LogInfo("EnemyManager found, NPC shadows will be set up.");
+                    break;
                 }
             }
         }
-
     }
 }

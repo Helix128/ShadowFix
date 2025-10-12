@@ -86,7 +86,7 @@ public class ShadowFixPlugin : BasePlugin
             int currentScene = SceneManager.GetActiveScene().buildIndex;
             if (currentScene != lastScene)
             {   
-                Log.LogInfo($"Scene changed to {currentScene} ({SceneManager.GetSceneAt(0).name}). Running shadow fix...");
+                Log.LogInfo($"Detected scene change to {currentScene} ({SceneManager.GetSceneAt(0).name}).");
                 FixShadows();
                 lastScene = currentScene;
             }
@@ -115,7 +115,7 @@ public class ShadowFixPlugin : BasePlugin
         async void FadeShadows(Light light, float targetStrength)
         {
             int steps = 32;
-            float duration = 0.3f;
+            float duration = 0.15f;
             float initialStrength = 0;
             for (int i = 1; i <= steps; i++)
             {
@@ -131,7 +131,7 @@ public class ShadowFixPlugin : BasePlugin
             if (isFixing) { Log.LogWarning("ShadowFix is already in progress."); return; }
     
             int currentScene = SceneManager.GetActiveScene().buildIndex;
-            if (currentScene <= 1 || currentScene != 3) // skip main menu and loading scene
+            if (currentScene <= 1 || currentScene == 3) // skip main menu and loading scene
             {
                 Log.LogInfo("Non-gameplay scene detected, skipping shadow fix.");
                 return;
@@ -140,7 +140,7 @@ public class ShadowFixPlugin : BasePlugin
             isFixing = true;
             // TODO - actually detect when the scene is fully loaded
             // This delay is a workaround to ensure everything spawned before we try to modify it
-            await Task.Delay(2250);
+            await Task.Delay(2000);
             fixedEnemies.Clear();
             var lights = FindObjectsOfType<Light>();
             foreach (var light in lights)

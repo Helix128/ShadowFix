@@ -118,7 +118,7 @@ public class ShadowFixPlugin : BasePlugin
         async void FixShadows()
         {   
             Log.LogInfo("Starting ShadowFix...");
-            await Task.Delay(2000);
+            await Task.Delay(2500);
             fixedEnemies.Clear();
             var lights = FindObjectsOfType<Light>();
             foreach (var light in lights)

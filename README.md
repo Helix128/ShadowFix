@@ -29,7 +29,7 @@ Enable dynamic shadows for the player.
 Note: You can have both of them on or off at the same time without issues.
 
 #### TwoSidedShadows (DEFAULT: True)
-Makes it so scene objects have two-sided shadow rendering. Fixes some shadow artifacts mostly present on Desert houses, but makes the game render more stuff.
+Makes it so scene objects have two-sided shadow rendering. Fixes some shadow artifacts mostly present on Desert houses.
 
 #### EnableNPCShadows (DEFAULT: False)
 Enable shadows for enemies. Disabled by default because it has a few small visual artifacts when enemies die and it's not recommended for low end devices.

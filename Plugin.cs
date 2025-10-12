@@ -83,46 +83,74 @@ public class ShadowFixPlugin : BasePlugin
 
         void Update()
         {
-            int currentScene = SceneManager.GetActiveScene().buildIndex;
-            if (currentScene != lastScene)
-            {   
-                Log.LogInfo($"Detected scene change to {currentScene} ({SceneManager.GetSceneAt(0).name}).");
-                FixShadows();
-                lastScene = currentScene;
-            }
-            if (EnableNPCShadows && Time.frameCount % 2 >= 1)
+            try
             {
-                FixEnemyShadows();
+                int currentScene = SceneManager.GetActiveScene().buildIndex;
+                if (currentScene != lastScene)
+                {   
+                    Log.LogInfo($"Detected scene change to {currentScene} ({SceneManager.GetSceneAt(0).name}).");
+                    FixShadows();
+                    lastScene = currentScene;
+                }
+                if (EnableNPCShadows && Time.frameCount % 2 >= 1)
+                {
+                    FixEnemyShadows();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log.LogError($"Error in Update: {ex.Message}");
             }
         }
         public List<uint> fixedEnemies = new List<uint>();
         void FixEnemyShadows()
         {
-            if (enemyManager == null) return;
-
-            foreach (Enemy enemy in enemyManager.enemies.Values)
+            try
             {
-                if (enemy == null) continue;
-                if (fixedEnemies.Contains(enemy.id)) continue;
-                fixedEnemies.Add(enemy.id);
-                var renderer = enemy.renderer;
-                if (renderer == null) continue;
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-                //Log.LogInfo($"Enabled shadows for enemy '{enemy.name}' (renderer: '{renderer.name}').");
+                if (enemyManager == null) return;
+
+                foreach (Enemy enemy in enemyManager.enemies.Values)
+                {
+                    if (enemy == null) continue;
+                    if (fixedEnemies.Contains(enemy.id)) continue;
+                    
+                    try
+                    {
+                        var renderer = enemy.renderer;
+                        if (renderer == null) continue;
+                        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                        fixedEnemies.Add(enemy.id);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Log.LogError($"Error fixing shadow for enemy {enemy.id}: {ex.Message}");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log.LogError($"Error in FixEnemyShadows: {ex.Message}");
             }
         }
 
         async void FadeShadows(Light light, float targetStrength)
         {
-            int steps = 32;
-            float duration = 0.15f;
-            float initialStrength = 0;
-            for (int i = 1; i <= steps; i++)
+            try
             {
-                light.shadowStrength = Mathf.Lerp(initialStrength, targetStrength, (float)i / steps);
-                await Task.Delay((int)(duration * 1000 / steps));
+                int steps = 32;
+                float duration = 0.15f;
+                float initialStrength = 0;
+                for (int i = 1; i <= steps; i++)
+                {
+                    if (light == null || light.Equals(null)) return;
+                    light.shadowStrength = Mathf.Lerp(initialStrength, targetStrength, (float)i / steps);
+                    await Task.Delay((int)(duration * 1000 / steps));
+                }
             }
-
+            catch (System.Exception ex)
+            {
+                Log.LogError($"Error in FadeShadows: {ex.Message}");
+            }
         }
 
         bool isFixing = false;
@@ -130,92 +158,111 @@ public class ShadowFixPlugin : BasePlugin
         {
             if (isFixing) { Log.LogWarning("ShadowFix is already in progress."); return; }
     
-            int currentScene = SceneManager.GetActiveScene().buildIndex;
-            if (currentScene <= 1 || currentScene == 3) // skip main menu and loading scene
+            try
             {
-                Log.LogInfo("Non-gameplay scene detected, skipping shadow fix.");
-                return;
-            }
-            Log.LogInfo("Starting ShadowFix...");
-            isFixing = true;
-            // TODO - actually detect when the scene is fully loaded
-            // This delay is a workaround to ensure everything spawned before we try to modify it
-            await Task.Delay(2000);
-            fixedEnemies.Clear();
-            var lights = FindObjectsOfType<Light>();
-            foreach (var light in lights)
-            {
-                if (light.type != LightType.Directional) continue;
-                if (light.shadows == LightShadows.None)
+                int currentScene = SceneManager.GetActiveScene().buildIndex;
+                if (currentScene <= 1 || currentScene == 3)
                 {
-                    light.shadows = LightShadows.Soft;
-                    FadeShadows(light, ShadowDarkness);
-                    light.shadowConstantBias *= 0.8f;
-                    light.shadowBias *= 0.8f;
-                    light.shadowNormalBias *= 0.8f;
-                    Log.LogInfo($"Enabled shadows for '{light.name}'.");
-                }
-            }
-
-            Log.LogInfo($"Must set two-sided shadows? {TwoSidedShadows}");
-            if (TwoSidedShadows)
-            {
-                Log.LogInfo("Preparing to fix mesh shadow mode...");
-                var meshes = FindObjectsOfType<MeshRenderer>();
-                foreach (var mesh in meshes)
-                {
-                    Log.LogInfo($"Setting shadow casting mode for '{mesh.name}'.");
-                    mesh.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
-                }
-            }   
-
-        
-           Log.LogInfo($"Enable player shadow? {EnablePlayerShadow}");
-            var player = FindObjectOfType<PlayerRenderer>();
-            if (player != null)
-            {
-                var playerGo = player.rendererObject;
-                if (playerGo == null)
-                {
-                    Log.LogWarning("Player GameObject not found.");
+                    Log.LogInfo("Non-gameplay scene detected, skipping shadow fix.");
                     return;
                 }
-                var playerRenderers = playerGo.GetComponentsInChildren<Renderer>(true);
-                foreach (var renderer in playerRenderers)
+                Log.LogInfo("Starting ShadowFix...");
+                isFixing = true;
+                await Task.Delay(2000);
+                
+                if (SceneManager.GetActiveScene().buildIndex != currentScene)
                 {
-                    renderer.shadowCastingMode = EnablePlayerShadow? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
-                    Log.LogInfo($"{(EnablePlayerShadow ? "Enabled" : "Disabled")} shadows for player mesh '{renderer.name}'.");
+                    Log.LogWarning("Scene changed during delay, aborting shadow fix.");
+                    return;
                 }
-            }
+                
+                fixedEnemies.Clear();
+                var lights = FindObjectsOfType<Light>();
+                foreach (var light in lights)
+                {
+                    if (light.type != LightType.Directional) continue;
+                    if (light.shadows == LightShadows.None)
+                    {
+                        light.shadows = LightShadows.Soft;
+                        FadeShadows(light, ShadowDarkness);
+                        light.shadowConstantBias *= 0.8f;
+                        light.shadowBias *= 0.8f;
+                        light.shadowNormalBias *= 0.8f;
+                        Log.LogInfo($"Enabled shadows for '{light.name}'.");
+                    }
+                }
+
+                Log.LogInfo($"Must set two-sided shadows? {TwoSidedShadows}");
+                if (TwoSidedShadows)
+                {
+                    Log.LogInfo("Preparing to fix mesh shadow mode...");
+                    var meshes = FindObjectsOfType<MeshRenderer>();
+                    foreach (var mesh in meshes)
+                    {
+                        Log.LogInfo($"Setting shadow casting mode for '{mesh.name}'.");
+                        mesh.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
+                    }
+                }   
+
+        
+                Log.LogInfo($"Enable player shadow? {EnablePlayerShadow}");
+                var player = FindObjectOfType<PlayerRenderer>();
+                if (player != null && !player.Equals(null))
+                {
+                    var playerGo = player.rendererObject;
+                    if (playerGo == null || playerGo.Equals(null))
+                    {
+                        Log.LogWarning("Player GameObject not found.");
+                        return;
+                    }
+                    var playerRenderers = playerGo.GetComponentsInChildren<Renderer>(true);
+                    foreach (var renderer in playerRenderers)
+                    {
+                        renderer.shadowCastingMode = EnablePlayerShadow? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
+                        Log.LogInfo($"{(EnablePlayerShadow ? "Enabled" : "Disabled")} shadows for player mesh '{renderer.name}'.");
+                    }
+                }
             
-            Log.LogInfo($"Must destroy blob shadow? {DisableBlobShadow}");
-            var blobShadowProjs = FindObjectsOfType<Projector>();
-            if (blobShadowProjs != null && DisableBlobShadow)
-            {
-                foreach (var blobShadowProj in blobShadowProjs)
+                Log.LogInfo($"Must destroy blob shadow? {DisableBlobShadow}");
+                var blobShadowProjs = FindObjectsOfType<Projector>();
+                if (blobShadowProjs != null && DisableBlobShadow)
                 {
-                    Destroy(blobShadowProj);
-                    Log.LogInfo("Destroyed BlobShadowProjector.");
+                    foreach (var blobShadowProj in blobShadowProjs)
+                    {
+                        Destroy(blobShadowProj);
+                        Log.LogInfo("Destroyed BlobShadowProjector.");
+                    }
                 }
-            }
-            Log.LogInfo($"Enable NPC shadows? {EnableNPCShadows}");
-            if (EnableNPCShadows)
-            {
-                var enemyManagers = FindObjectsByType<EnemyManager>(FindObjectsSortMode.None);
-                if (enemyManagers.Length == 0)
+                Log.LogInfo($"Enable NPC shadows? {EnableNPCShadows}");
+                if (EnableNPCShadows)
                 {
-                    Log.LogWarning("EnemyManager not found. (Probably a menu scene)");
+                    var enemyManagers = FindObjectsByType<EnemyManager>(FindObjectsSortMode.None);
+                    if (enemyManagers.Length == 0)
+                    {
+                        Log.LogWarning("EnemyManager not found. (Probably a menu scene)");
+                    }
+                    else
+                    {
+                        if (enemyManager != enemyManagers[0])
+                        {
+                            fixedEnemies.Clear();
+                        }
+                        enemyManager = enemyManagers[0];
+                        Log.LogInfo($"Found EnemyManager.");
+                    }
                 }
-                else
-                {
-                    enemyManager = enemyManagers[0];
-                    Log.LogInfo($"Found EnemyManager.");
-                }
-            }
 
 
-            Log.LogInfo("ShadowFix done.");
-            isFixing = false;
+                Log.LogInfo("ShadowFix done.");
+            }
+            catch (System.Exception ex)
+            {
+                Log.LogError($"Error in FixShadows: {ex.Message}");
+            }
+            finally
+            {
+                isFixing = false;
+            }
         }
 
     }

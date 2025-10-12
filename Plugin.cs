@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using Assets.Scripts.Actors.Enemies;
+using Assets.Scripts.Game.Spawning.New;
 using Assets.Scripts.Managers;
 using BepInEx;
 using BepInEx.Configuration;
@@ -65,10 +66,18 @@ public class ShadowFixPlugin : BasePlugin
 
     public class ShadowFixComponent : MonoBehaviour
     {   
+        public static ShadowFixComponent Instance { get; private set; }
         EnemyManager enemyManager;
         int lastScene = -1;
         private void Start()
         {
+            if(Instance != null && Instance != this)
+            {
+                Log.LogInfo("Detected duplicate ShadowFixComponent. Destroying the newest one.");
+                Destroy(this);
+                return;
+            }
+            Instance = this;
             Log.LogInfo("ShadowFixComponent started.");
         }
 
@@ -80,7 +89,7 @@ public class ShadowFixPlugin : BasePlugin
                 FixShadows();
                 lastScene = currentScene;
             }
-            if (EnableNPCShadows)
+            if (EnableNPCShadows && Time.frameCount % 2 >= 1)
             {
                 FixEnemyShadows();
             }
@@ -98,15 +107,14 @@ public class ShadowFixPlugin : BasePlugin
                 var renderer = enemy.renderer;
                 if (renderer == null) continue;
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-                Log.LogInfo($"Enabled shadows for enemy '{enemy.name}' (renderer: '{renderer.name}').");
-
+                //Log.LogInfo($"Enabled shadows for enemy '{enemy.name}' (renderer: '{renderer.name}').");
             }
         }
         
         async void FadeShadows(Light light, float targetStrength)
         {
             int steps = 32;
-            float duration = 0.2f;
+            float duration = 0.3f;
             float initialStrength = 0;
             for (int i = 1; i <= steps; i++)
             {
@@ -118,9 +126,14 @@ public class ShadowFixPlugin : BasePlugin
         async void FixShadows()
         {
             Log.LogInfo("Starting ShadowFix...");
+            if(SceneManager.GetActiveScene().buildIndex <= 1)
+            {
+                Log.LogInfo("Non-gameplay scene detected, skipping shadow fix.");
+                return;
+            }
             // TODO - actually detect when the scene is fully loaded
             // This delay is a workaround to ensure everything spawned before we try to modify it
-            await Task.Delay(2500);
+            await Task.Delay(2250);
             fixedEnemies.Clear();
             var lights = FindObjectsOfType<Light>();
             foreach (var light in lights)

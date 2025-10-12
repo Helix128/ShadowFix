@@ -15,6 +15,8 @@ However, there are no shadows in-game!
 
 This could have been an artistic decision or maybe something done for better performance, but with this mod at least you have a choice.
 
+<img width="1093" height="598" alt="imagen" src="https://github.com/user-attachments/assets/f32a5687-f652-4a74-93de-92800b37ec2e" />
+
 ### What it does specifically?
 The mod has 5 settings in its config file (located at <GameDirectory>/BepInEx/config/ShadowFix.cfg)
 

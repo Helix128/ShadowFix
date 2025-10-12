@@ -116,8 +116,10 @@ public class ShadowFixPlugin : BasePlugin
             
         }
         async void FixShadows()
-        {   
+        {
             Log.LogInfo("Starting ShadowFix...");
+            // TODO - actually detect when the scene is fully loaded
+            // This delay is a workaround to ensure everything spawned before we try to modify it
             await Task.Delay(2500);
             fixedEnemies.Clear();
             var lights = FindObjectsOfType<Light>();

@@ -85,7 +85,8 @@ public class ShadowFixPlugin : BasePlugin
         {
             int currentScene = SceneManager.GetActiveScene().buildIndex;
             if (currentScene != lastScene)
-            {
+            {   
+                Log.LogInfo($"Scene changed to {currentScene} ({SceneManager.GetSceneAt(0).name}). Running shadow fix...");
                 FixShadows();
                 lastScene = currentScene;
             }
@@ -110,7 +111,7 @@ public class ShadowFixPlugin : BasePlugin
                 //Log.LogInfo($"Enabled shadows for enemy '{enemy.name}' (renderer: '{renderer.name}').");
             }
         }
-        
+
         async void FadeShadows(Light light, float targetStrength)
         {
             int steps = 32;
@@ -121,16 +122,22 @@ public class ShadowFixPlugin : BasePlugin
                 light.shadowStrength = Mathf.Lerp(initialStrength, targetStrength, (float)i / steps);
                 await Task.Delay((int)(duration * 1000 / steps));
             }
-            
+
         }
+
+        bool isFixing = false;
         async void FixShadows()
         {
-            Log.LogInfo("Starting ShadowFix...");
-            if(SceneManager.GetActiveScene().buildIndex <= 1)
+            if (isFixing) { Log.LogWarning("ShadowFix is already in progress."); return; }
+    
+            int currentScene = SceneManager.GetActiveScene().buildIndex;
+            if (currentScene <= 1 || currentScene != 3) // skip main menu and loading scene
             {
                 Log.LogInfo("Non-gameplay scene detected, skipping shadow fix.");
                 return;
             }
+            Log.LogInfo("Starting ShadowFix...");
+            isFixing = true;
             // TODO - actually detect when the scene is fully loaded
             // This delay is a workaround to ensure everything spawned before we try to modify it
             await Task.Delay(2250);
@@ -205,9 +212,10 @@ public class ShadowFixPlugin : BasePlugin
                     Log.LogInfo($"Found EnemyManager.");
                 }
             }
-            
-            
+
+
             Log.LogInfo("ShadowFix done.");
+            isFixing = false;
         }
 
     }
